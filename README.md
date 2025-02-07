@@ -50,4 +50,4 @@ python bot.py
 ## Связь
 
 Если у вас есть вопросы или предложения, вы можете связаться со мной через [viperrpank@icloud.com](mailto:viperrpank@icloud.com).
-Если у вас есть вопросы или предложения, вы можете связаться со мной через viperrpank@icloud.com.
+
