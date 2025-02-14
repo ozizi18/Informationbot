@@ -24,6 +24,7 @@ cursor = conn.cursor()
 
 # ID администраторов
 ADMIN_IDS = [7940750902]
+ADMIN_IDS = [1198598353]
 
 # Состояния FSM для админ-панели
 class AdminStates(StatesGroup):
