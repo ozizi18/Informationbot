@@ -23,7 +23,7 @@ conn = sqlite3.connect('college_info.db', check_same_thread=False)
 cursor = conn.cursor()
 
 # ID администраторов
-ADMIN_IDS = [7940750902]
+ADMIN_IDS = [1255715565, 1198598353]
 
 
 # Состояния FSM для админ-панели
