@@ -6,10 +6,10 @@ def init_database():
     cursor = conn.cursor()
 
     # Очистка существующих таблиц
-    cursor.execute('DELETE FROM news')
-    cursor.execute('DELETE FROM schedule')
-    cursor.execute('DELETE FROM events')
-    cursor.execute('DELETE FROM contacts')
+    # cursor.execute('DELETE FROM news')
+    # cursor.execute('DELETE FROM schedule')
+    # cursor.execute('DELETE FROM events')
+    # cursor.execute('DELETE FROM contacts')
 
     # Добавление актуальных новостей
     news_data = [
