@@ -38,7 +38,7 @@
    `pip install -r requirements.txt`
 
 4. Запустите бота:  
-   `python bot.py`
+   `python main.py`
 
 ## Использование
 
