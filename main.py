@@ -109,22 +109,60 @@ async def admin_start(message: types.Message):
 
 # Пользовательские обработчики
 @dp.message_handler(lambda message: message.text == "📰 Новости")
-async def show_news(message: types.Message):
-    """Показ новостей"""
-    cursor.execute('SELECT title, content, date, image_url FROM news ORDER BY date DESC LIMIT 5')
+async def show_news(message: types.Message, page=0):
+    """Показ новостей с навигацией"""
+    # Получаем все новости
+    cursor.execute('SELECT id, title, content, date, image_url FROM news ORDER BY date DESC')
     news = cursor.fetchall()
-    if news:
-        for title, content, date, image_url in news:
-            if image_url:
-                caption = f"📅 {date}\n📌 {title}\n\n{content}"
-                try:
-                    await message.answer_photo(photo=image_url, caption=caption)
-                except Exception:
-                    await message.answer(f"📅 {date}\n📌 {title}\n\n{content}")
-            else:
-                await message.answer(f"📅 {date}\n📌 {title}\n\n{content}")
-    else:
+    
+    if not news:
         await message.answer("На данный момент новостей нет.")
+        return
+        
+    # Создаем клавиатуру с кнопками навигации
+    keyboard = types.InlineKeyboardMarkup()
+    
+    # Добавляем кнопки навигации в зависимости от текущей позиции
+    if page > 0:
+        keyboard.add(types.InlineKeyboardButton(
+            text="⬅️ Предыдущая", 
+            callback_data=f"news_{page-1}"
+        ))
+    
+    if page < len(news) - 1:
+        keyboard.add(types.InlineKeyboardButton(
+            text="Следующая ➡️", 
+            callback_data=f"news_{page+1}"
+        ))
+    
+    # Добавляем счетчик страниц
+    keyboard.add(types.InlineKeyboardButton(
+        text=f"{page + 1}/{len(news)}", 
+        callback_data="count"
+    ))
+    
+    # Получаем текущую новость
+    news_id, title, content, date, image_url = news[page]
+    
+    # Формируем текст новости
+    caption = f"📅 {date}\n📌 {title}\n\n{content}"
+    
+    # Отправляем новость
+    try:
+        if image_url:
+            await message.answer_photo(
+                photo=image_url,
+                caption=caption,
+                reply_markup=keyboard
+            )
+        else:
+            await message.answer(
+                text=caption,
+                reply_markup=keyboard
+            )
+    except Exception as e:
+        logging.error(f"Ошибка при отправке новости: {e}")
+        await message.answer(caption, reply_markup=keyboard)
 
 @dp.message_handler(lambda message: message.text == "📅 Расписание")
 async def show_schedule_groups(message: types.Message):
@@ -516,6 +554,84 @@ async def process_delete_contact(callback_query: types.CallbackQuery):
     conn.commit()
     await callback_query.answer("Контакт удален!")
     await callback_query.message.edit_text("✅ Контакт успешно удален!")
+
+# Обработчик нажатий на кнопки навигации
+@dp.callback_query_handler(lambda c: c.data and c.data.startswith('news_'))
+async def process_news_navigation(callback_query: types.CallbackQuery):
+    """Обработка навигации по новостям"""
+    try:
+        # Получаем номер страницы из callback_data
+        page = int(callback_query.data.split('_')[1])
+        
+        # Получаем все новости
+        cursor.execute('SELECT id, title, content, date, image_url FROM news ORDER BY date DESC')
+        news = cursor.fetchall()
+        
+        if not news:
+            await callback_query.answer("Новости не найдены")
+            return
+            
+        # Создаем клавиатуру с кнопками навигации
+        keyboard = types.InlineKeyboardMarkup()
+        
+        # Добавляем кнопки навигации в зависимости от текущей позиции
+        if page > 0:
+            keyboard.add(types.InlineKeyboardButton(
+                text="⬅️ Предыдущая", 
+                callback_data=f"news_{page-1}"
+            ))
+        
+        if page < len(news) - 1:
+            keyboard.add(types.InlineKeyboardButton(
+                text="Следующая ➡️", 
+                callback_data=f"news_{page+1}"
+            ))
+        
+        # Добавляем счетчик страниц
+        keyboard.add(types.InlineKeyboardButton(
+            text=f"{page + 1}/{len(news)}", 
+            callback_data="count"
+        ))
+        
+        # Получаем текущую новость
+        news_id, title, content, date, image_url = news[page]
+        
+        # Формируем текст новости
+        caption = f"📅 {date}\n📌 {title}\n\n{content}"
+        
+        # Обновляем сообщение с новостью
+        try:
+            if image_url:
+                await callback_query.message.edit_media(
+                    types.InputMediaPhoto(
+                        media=image_url,
+                        caption=caption
+                    ),
+                    reply_markup=keyboard
+                )
+            else:
+                await callback_query.message.edit_text(
+                    text=caption,
+                    reply_markup=keyboard
+                )
+        except Exception as e:
+            logging.error(f"Ошибка при обновлении новости: {e}")
+            await callback_query.message.edit_text(
+                text=caption,
+                reply_markup=keyboard
+            )
+            
+        await callback_query.answer()
+        
+    except Exception as e:
+        logging.error(f"Ошибка в навигации по новостям: {e}")
+        await callback_query.answer("Произошла ошибка при навигации")
+
+# Обработчик для кнопки счетчика (чтобы не было ошибки при нажатии)
+@dp.callback_query_handler(lambda c: c.data == 'count')
+async def process_count_button(callback_query: types.CallbackQuery):
+    """Обработка нажатия на счетчик страниц"""
+    await callback_query.answer()
 
 def create_tables():
     """Создание всех необходимых таблиц"""
