@@ -149,12 +149,20 @@ async def show_news(message: types.Message, page=0):
     
     # Отправляем новость
     try:
-        if image_url:
-            await message.answer_photo(
-                photo=image_url,
-                caption=caption,
-                reply_markup=keyboard
-            )
+        if image_url and len(image_url) > 5:  # Проверяем, что URL не пустой и имеет минимальную длину
+            try:
+                await message.answer_photo(
+                    photo=image_url,
+                    caption=caption,
+                    reply_markup=keyboard
+                )
+            except Exception as e:
+                logging.error(f"Ошибка при отправке новости с изображением: {e}")
+                # Если не удалось отправить с изображением, отправляем только текст
+                await message.answer(
+                    text=caption,
+                    reply_markup=keyboard
+                )
         else:
             await message.answer(
                 text=caption,
@@ -601,25 +609,70 @@ async def process_news_navigation(callback_query: types.CallbackQuery):
         
         # Обновляем сообщение с новостью
         try:
-            if image_url:
-                await callback_query.message.edit_media(
-                    types.InputMediaPhoto(
-                        media=image_url,
-                        caption=caption
-                    ),
-                    reply_markup=keyboard
-                )
+            # Проверяем, есть ли у текущего сообщения изображение
+            has_photo = callback_query.message.photo is not None and len(callback_query.message.photo) > 0
+            
+            if image_url and len(image_url) > 5:  # Проверяем, что URL не пустой и имеет минимальную длину
+                if has_photo:
+                    try:
+                        # Если текущее сообщение уже содержит изображение
+                        await callback_query.message.edit_media(
+                            types.InputMediaPhoto(
+                                media=image_url,
+                                caption=caption
+                            ),
+                            reply_markup=keyboard
+                        )
+                    except Exception as e:
+                        logging.error(f"Ошибка при обновлении новости с изображением: {e}")
+                        # Если не удалось обновить с изображением, обновляем только текст
+                        await callback_query.message.edit_text(
+                            text=caption,
+                            reply_markup=keyboard
+                        )
+                else:
+                    # Если текущее сообщение не содержит изображение, удаляем его и отправляем новое
+                    await callback_query.message.delete()
+                    try:
+                        await callback_query.message.answer_photo(
+                            photo=image_url,
+                            caption=caption,
+                            reply_markup=keyboard
+                        )
+                    except Exception as e:
+                        logging.error(f"Ошибка при отправке новой новости с изображением: {e}")
+                        await callback_query.message.answer(
+                            text=caption,
+                            reply_markup=keyboard
+                        )
             else:
+                if has_photo:
+                    # Если текущее сообщение содержит изображение, а новое - нет, удаляем и отправляем новое
+                    await callback_query.message.delete()
+                    await callback_query.message.answer(
+                        text=caption,
+                        reply_markup=keyboard
+                    )
+                else:
+                    # Если оба сообщения без изображений, просто обновляем текст
+                    await callback_query.message.edit_text(
+                        text=caption,
+                        reply_markup=keyboard
+                    )
+        except Exception as e:
+            logging.error(f"Ошибка при обновлении новости: {e}")
+            try:
                 await callback_query.message.edit_text(
                     text=caption,
                     reply_markup=keyboard
                 )
-        except Exception as e:
-            logging.error(f"Ошибка при обновлении новости: {e}")
-            await callback_query.message.edit_text(
-                text=caption,
-                reply_markup=keyboard
-            )
+            except:
+                # Если не удалось обновить сообщение, отправляем новое
+                await callback_query.message.delete()
+                await callback_query.message.answer(
+                    text=caption,
+                    reply_markup=keyboard
+                )
             
         await callback_query.answer()
         
